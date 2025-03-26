@@ -19,9 +19,10 @@ startup
  {
 	String speedometer;
 	String questcounter;
+	String maxSpeedometer;
 	
 
-    //creates text components for quest counter and speedometer
+    //creates text components for quest counter, speedometer and maxSpeedometer
 	vars.SetTextComponent = (Action<string, string>)((id, text) =>
 	{
         var textSettings = timer.Layout.Components.Where(x => x.GetType().Name == "TextComponent").Select(x => x.GetType().GetProperty("Settings").GetValue(x, null));
@@ -42,6 +43,7 @@ startup
 
     settings.Add("Quest Counter", false, "Quest Counter");	
     settings.Add("Speed", false, "Speed");
+	settings.Add("Max Speed", false, "Max Speed", "Speed");
 	settings.Add("AutoStart",true,"AutoStart");
     settings.Add("Autosplitter", false, "Autosplitter");
 	settings.Add("Quest&Cell_Splitter",true,"Category Autosplitters","Autosplitter");
@@ -57,6 +59,7 @@ startup
 	settings.Add("Custom",false,"Custom","Quest&Cell_Splitter");
 	
 	
+	settings.SetToolTip("Max Speed", "Records the maximum speed the character had in a run and will be set back to 0 when the timer is started or reset. Values over 100000 will reset it to 0.");
 	settings.SetToolTip("Quest&Cell_Splitter","Splits based on set Quest and cell");
     settings.SetToolTip("Quest_Splitter", "Causes timer to split when the quest counter is the same as the quest number in your splits surrounded by () eg: (1) Infinite Dash\n Will not split if anything else surrounds the number ");
 	settings.SetToolTip("Debug","Shows player info such as cell, questname and stage");
@@ -172,6 +175,9 @@ init
 	vars.pointeraddrs = new DeepPointer(vars.isIntroDoneAddr,0);
 	vars.intro = new MemoryWatcher<bool>(vars.pointeraddrs);
 	
+	vars.maxSpeedValue = 0.0f;
+	vars.tempSpeed = 0.0f;
+
 	//Allow splitting at custom times
 	/*
 	Make a text file with values seperated by commas
@@ -266,6 +272,8 @@ update
 	vars.split = false;
     vars.isLoading = false;
 	vars.doStart = false;
+
+
 	string hexCell = Convert.ToString(current.CellRefID,16).ToUpper();
 	if ((vars.loading.Current) || (!vars.intro.Current)) {
         vars.isLoading = true;
@@ -279,14 +287,29 @@ update
 			{
 				current.speed = 0;
 			}
-			current.speedometer = (Math.Sqrt(Math.Pow(current.speed,2)+Math.Pow(current.HorizontalSpeed,2))).ToString("000.0000");
-			vars.SetTextComponent("Speed:", (current.speedometer));
-		}
+			vars.tempSpeed = (Math.Sqrt(Math.Pow(current.speed,2)+Math.Pow(current.HorizontalSpeed,2)));
 
+			current.speedometer = vars.tempSpeed.ToString("000.0000");
+			vars.SetTextComponent("Speed:", (current.speedometer));
+			
+			if (settings["Max Speed"])
+			{	
+				if(vars.maxSpeedValue > 100000)
+				{
+					vars.maxSpeedValue = 0;
+				}
+				if( vars.tempSpeed >= vars.maxSpeedValue)
+				{
+					vars.maxSpeedValue = vars.tempSpeed;
+					current.maxSpeedometer = vars.maxSpeedValue.ToString("000.0000");
+					vars.SetTextComponent("Max Speed:", (current.maxSpeedometer));
+				}
+			}
+		}
 	}
 	if (settings["Quest Counter"]) 
 	{
-		
+
 		current.questcounter = current.quest.ToString("0");
 		vars.SetTextComponent("Quests:", (current.questcounter)); 
 	}
@@ -387,6 +410,27 @@ update
 				vars.split=true;
 			}
 		}
+	}
+
+}
+
+onReset
+{
+	if (settings["Max Speed"])
+	{
+		vars.maxSpeedValue = 0.0f;
+		current.maxSpeedometer = vars.maxSpeedValue.ToString("000.0000");
+		vars.SetTextComponent("Max Speed:", (current.maxSpeedometer));
+	}
+}
+
+onStart
+{
+	if (settings["Max Speed"])
+	{
+		vars.maxSpeedValue = 0.0f;
+		current.maxSpeedometer = vars.maxSpeedValue.ToString("000.0000");
+		vars.SetTextComponent("Max Speed:", (current.maxSpeedometer));
 	}
 }
 
